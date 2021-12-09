@@ -1,0 +1,2 @@
+# glgc
+SFML graphing calculator.
