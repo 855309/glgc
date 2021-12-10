@@ -8,6 +8,7 @@
 #include <imgui-SFML.h>
 
 #include "expr.hpp"
+#include "file.hpp"
 
 #include <SFML/Graphics.hpp>
 
@@ -39,6 +40,12 @@ class function
         }
 };
 
+struct langdef{
+    int ln;
+    std::string lang;
+    std::string text;
+};
+
 std::vector<function> functions;
 
 std::vector<sf::Color> cols = {
@@ -52,7 +59,7 @@ std::vector<sf::Color> cols = {
 int rand_int(int a, int b){
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::uniform_int_distribution dist(a, b);
+    std::uniform_int_distribution<int> dist(a, b);
 
     return dist(mt);
 }
@@ -109,7 +116,7 @@ void gen_func(function *func){
         std::vector<varpair> varlist;
         varlist.push_back(varpair("x", rg));
         
-        varlist.push_back(varpair("e", M_Ef128));
+        varlist.push_back(varpair("e", M_E));
         // varlist.push_back(varpair("pi", M_PI));
 
         double vl = getexpval(func->equation, varlist);
@@ -148,10 +155,71 @@ void draw_func(function *func){
     }
 }
 
+std::string lang = "English";
+std::vector<langdef> lnp;
+std::vector<std::string> langs;
+void cachelang(){
+    std::vector<std::string> linelist = file_readlines("lang.ini");
+    
+    int kl = 0;
+    std::string langf = "undefined";
+    for(std::string line : linelist){
+        if(line[0] == '[' && line.back() == ']'){
+            kl = 0;
+            langf = line.substr(1, line.size() - 2);
+            langs.push_back(langf);
+        }
+        else{
+            langdef def = {
+                .ln = kl,
+                .lang = langf,
+                .text = line
+            };
+
+            lnp.push_back(def);
+            kl++;
+        }
+    }
+}
+
+std::string get_langtext(int f){
+    for(langdef d : lnp){
+        if(d.ln == f && d.lang == lang){
+            return d.text;
+        }
+    }
+
+    return "undefined";
+}
+
+bool init = false;
+void langinit(){
+    if(!init){
+        ImVec2 size(160, 70);
+
+        ImGui::SetNextWindowPos(ImVec2(WIDTH / 2 - size.x / 2, HEIGHT / 2 - size.y / 2));
+        ImGui::SetNextWindowSize(size);
+
+        ImGui::Begin("Language");
+
+        for(std::string l : langs){
+            ImGui::SameLine();
+            if(ImGui::Button(l.c_str())){
+                lang = l;
+                init = !init;
+            }
+        }
+
+        ImGui::End();
+    }
+}
+
 int main(int argc, char **argv){
     mwindow.setVerticalSyncEnabled(true);
 
     ImGui::SFML::Init(mwindow);
+
+    cachelang();
 
     sf::Clock deltaClock;
 
@@ -233,19 +301,26 @@ int main(int argc, char **argv){
 
         /* Initialize the imgui window */
         ImGui::SFML::Update(mwindow, deltaClock.restart());
+        langinit();
+        if(!init){
+            ImGui::SFML::Render(mwindow);
+
+            mwindow.display();
+            continue;
+        }
 
         // ImGui::SetNextWindowPos(ImVec2(910, 600));
         ImGui::SetNextWindowSize(ImVec2(340, 100));
-        ImGui::Begin("Grafik");
+        ImGui::Begin(get_langtext(0).c_str());
 
-        ImGui::Text("Fonksiyon:");
+        ImGui::Text(get_langtext(1).c_str());
 
         ImGui::SameLine();
 
         static char fnc_text[100] = "";
-        ImGui::InputTextWithHint("", "Örn: x^2, tan(x)...", fnc_text, 100);
+        ImGui::InputTextWithHint("", get_langtext(2).c_str(), fnc_text, 100);
 
-        if(ImGui::Button("Grafik Çiz")){
+        if(ImGui::Button(get_langtext(3).c_str())){
             add_func(std::string(fnc_text));
         }
 
@@ -254,7 +329,7 @@ int main(int argc, char **argv){
         /* Input function window */
         // ImGui::SetNextWindowPos(ImVec2(980, 20));
         ImGui::SetNextWindowSize(ImVec2(270, 270));
-        ImGui::Begin("Fonksiyonlar");
+        ImGui::Begin(get_langtext(4).c_str());
 
         std::string prefix = "f(x) = ";
 
@@ -268,7 +343,7 @@ int main(int argc, char **argv){
             ImGui::Text((prefix + func->equation).c_str());
 
             ImGui::SameLine();
-            if(ImGui::Button(std::string(std::string("Sil##") + std::to_string(m).c_str()).c_str())){
+            if(ImGui::Button(std::string(std::string(get_langtext(5) + "##") + std::to_string(m).c_str()).c_str())){
                 functions.erase(functions.begin() + m, functions.begin() + m+1);
                 
                 g--;
@@ -287,18 +362,18 @@ int main(int argc, char **argv){
         if(picker){
             // ImGui::SetNextWindowPos(ImVec2(20, 20));
             ImGui::SetNextWindowSize(ImVec2(280, 290));
-            ImGui::Begin("Renk Seçici");
+            ImGui::Begin(get_langtext(6).c_str());
             
             ImGui::ColorPicker4("", pickercol, ImGuiColorEditFlags_RGB);
     
-            if(ImGui::Button("Ayarla")){
+            if(ImGui::Button(get_langtext(7).c_str())){
                 pickerf->color = sf::Color(pickercol[0]*255, pickercol[1]*255, pickercol[2]*255);
                 // std::cout << (int)pickerf->color.r << ", " << (int)pickerf->color.g << ", " << (int)pickerf->color.b << std::endl;
                 picker = false;
             }
 
             ImGui::SameLine();
-            if(ImGui::Button("Iptal")){
+            if(ImGui::Button(get_langtext(8).c_str())){
                 picker = false;
             }
 

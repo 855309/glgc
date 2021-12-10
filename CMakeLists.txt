@@ -4,6 +4,7 @@ add_executable(
     glgc
     src/main.cpp
     src/expr.cpp
+    src/file.cpp
 )
 
 find_package(SFML 2.5 COMPONENTS audio graphics window system REQUIRED)
