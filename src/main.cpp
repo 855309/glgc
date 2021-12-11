@@ -21,6 +21,7 @@
 
 #define NLINE 40
 
+// sf::ContextSettings csettings;
 sf::RenderWindow mwindow(sf::VideoMode(WIDTH, HEIGHT), "glgc");
 
 class function
@@ -73,6 +74,7 @@ void draw_point_at(float x, float y, sf::Color color = cols[0]){
     float ydw = (HEIGHT / 2) - NLINE * y;
 
     sf::CircleShape rpix;
+
     rpix.setFillColor(color);
     rpix.setOutlineThickness(0);
 
@@ -89,18 +91,20 @@ void draw_line_at(sf::Vector2f lf1, sf::Vector2f lf2, sf::Color color = cols[0])
     float x2dw = (WIDTH / 2) + NLINE * lf2.x;
     float y2dw = (HEIGHT / 2) - NLINE * lf2.y;
 
-    sf::RectangleShape ln;
+    sf::Vertex arr[] = {
+        sf::Vertex(sf::Vector2(xdw, ydw)),
+        sf::Vertex(sf::Vector2(x2dw, y2dw))
+    };
 
-    ln.setFillColor(color);
+    arr->color = color;
 
-    ln.setOutlineThickness(0);
+    sf::VertexBuffer buf;
+    buf.update(arr);
+    buf.setPrimitiveType(sf::PrimitiveType::Lines);
 
-    ln.setPosition(xdw, ydw);
-    ln.setSize(sf::Vector2f(PIX_SIZE, sqrt(pow(abs(xdw - x2dw), 2) + pow(abs(ydw - y2dw), 2)))); // a^2 + b^2 = c^2
+    // std::cout << xdw << "-" << ydw << ", " << x2dw << "-" << y2dw << std::endl;
 
-    // ln.rotate(); // cos-1(sin-1(o/h))
-
-    mwindow.draw(ln);
+    mwindow.draw(buf);
 }
 
 void gen_func(function *func){
@@ -112,14 +116,21 @@ void gen_func(function *func){
     double ylimp = 0 + ((HEIGHT / 2) / NLINE);
     double ylimn = 0 - ((HEIGHT / 2) / NLINE);
 
-    for(double rg = sp; rg <= ep; rg += delta){
-        std::vector<varpair> varlist;
-        varlist.push_back(varpair("x", rg));
-        
-        varlist.push_back(varpair("e", M_E));
-        // varlist.push_back(varpair("pi", M_PI));
+    double current_x = sp;
 
-        double vl = getexpval(func->equation, varlist);
+    exprtk::symbol_table<double> table;
+    table.add_variable("x", current_x);
+
+    exprtk::expression<double> expression;
+    expression.register_symbol_table(table);
+
+    exprtk::parser<double> parser;
+    parser.compile(func->equation, expression);
+
+    for(double rg = sp; rg <= ep; rg += delta){
+        current_x = rg;
+
+        double vl = expression.value();
 
         if(vl <= ylimp && vl >= ylimn){
             func->points.push_back(sf::Vector2f(rg, vl));
@@ -131,27 +142,21 @@ sf::Color imvec_to_sfcolor(ImVec4 imcol){
     return sf::Color(imcol.x, imcol.y, imcol.z, 255 - imcol.w);
 }
 
-double limitgap = 0.01;
+double limitgap = 0.1;
 void draw_func(function *func){
     if(func->points.size() == 0){
         gen_func(func);
     }
 
-    bool sf = false;
     sf::Vector2f lpos;
     for(sf::Vector2f pos : func->points){
         draw_point_at(pos.x, pos.y, func->color);
 
-        if(sf){
-            if(abs((lpos.y - pos.y)) > limitgap){
-                // draw_line_at(lpos, pos, func->color);
-            }
+        /*if(abs((lpos.y - pos.y)) > limitgap){
+            draw_line_at(lpos, pos, sf::Color::Black);
+        }*/
 
-            lpos = pos;
-        }
-        else{
-            sf = true;
-        }
+        lpos = pos;
     }
 }
 
@@ -214,8 +219,23 @@ void langinit(){
     }
 }
 
+bool sett_init = false;
+bool win1_init = false;
+bool win2_init = false;
+bool win3_init = false;
+bool win4_init = false;
+
+void sm_bl(bool &state, std::function<void()> scr){
+    if(!state){
+        // ((void(*)())scr)(); // call the function that pointed by void pointer
+        scr();
+        state = !state;
+    }
+}
+
 int main(int argc, char **argv){
     mwindow.setVerticalSyncEnabled(true);
+    // csettings.antialiasingLevel = 8;
 
     ImGui::SFML::Init(mwindow);
 
@@ -309,7 +329,10 @@ int main(int argc, char **argv){
             continue;
         }
 
-        // ImGui::SetNextWindowPos(ImVec2(910, 600));
+        /* Input function window */
+        sm_bl(win1_init, []() {
+            ImGui::SetNextWindowPos(ImVec2(910, 600));
+        });
         ImGui::SetNextWindowSize(ImVec2(340, 100));
         ImGui::Begin(get_langtext(0).c_str());
 
@@ -326,8 +349,10 @@ int main(int argc, char **argv){
 
         ImGui::End();
 
-        /* Input function window */
-        // ImGui::SetNextWindowPos(ImVec2(980, 20));
+        /* Function list window */
+        sm_bl(win2_init, []() {
+            ImGui::SetNextWindowPos(ImVec2(980, 20));
+        });
         ImGui::SetNextWindowSize(ImVec2(270, 270));
         ImGui::Begin(get_langtext(4).c_str());
 
@@ -360,7 +385,9 @@ int main(int argc, char **argv){
         ImGui::End();
 
         if(picker){
-            // ImGui::SetNextWindowPos(ImVec2(20, 20));
+            sm_bl(win3_init, []() {
+                ImGui::SetNextWindowPos(ImVec2(20, 20));
+            });
             ImGui::SetNextWindowSize(ImVec2(280, 290));
             ImGui::Begin(get_langtext(6).c_str());
             
@@ -379,6 +406,19 @@ int main(int argc, char **argv){
 
             ImGui::End();
         }
+
+        /* Settings window */
+        sm_bl(sett_init, []() {
+            ImGui::SetNextWindowPos(ImVec2(1121, 536));
+            ImGui::SetNextWindowCollapsed(true);
+        });
+        ImGui::Begin(get_langtext(9).c_str());
+        
+        if(ImGui::Button(get_langtext(10).c_str())){
+            init = !init;
+        }
+
+        ImGui::End();
 
         ImGui::SFML::Render(mwindow);
 

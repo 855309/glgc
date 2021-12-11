@@ -10,5 +10,3 @@ class varpair{
 
         varpair(std::string vn, double vl);
 };
-
-double getexpval(std::string equ, std::vector<varpair> v);
