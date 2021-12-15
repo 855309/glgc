@@ -1,7 +1,9 @@
 # glgc
 SFML graphing calculator.
 
-1.0 Changelog:
+![Image 1](etc/images/image1.png)
+
+### 1.0 Changelog:
 - Faster calculation
-- Language select menu (EN, TR)
-- Color fix
+- Language selection menu (EN, TR)
+- Antialiasing fix
